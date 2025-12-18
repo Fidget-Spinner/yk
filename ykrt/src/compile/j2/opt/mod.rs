@@ -4,6 +4,7 @@ use crate::compile::{CompilationError, j2::hir::*};
 use index_vec::IndexVec;
 
 mod cse;
+mod known_bits;
 pub(super) mod noopt;
 #[allow(clippy::module_inception)]
 pub(super) mod opt;
