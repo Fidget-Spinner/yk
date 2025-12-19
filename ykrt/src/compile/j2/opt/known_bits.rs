@@ -60,9 +60,6 @@ impl KnownBitValue {
         if self.ones.bitw() == bitw && self.unknowns.bitw() == bitw {
             return self.clone();
         }
-        if !self.equiv(&KnownBitValue::unknown(64)) {
-            panic!("Setting bits on something that is not the default unknown value is unsafe.")
-        }
         KnownBitValue {
             ones: ArbBitInt::from_u64(bitw, 0),
             unknowns: ArbBitInt::from_u64(bitw, 1),
