@@ -305,6 +305,14 @@ impl ArbBitInt {
         }
     }
 
+    /// Return a new [ArbBitInt] that performs bitwise `NEG` on `self`.
+    pub(crate) fn bitneg(&self) -> Self {
+        Self {
+            bitw: self.bitw,
+            val: (!self.val).truncate(self.bitw),
+        }
+    }
+
     /// Return a new [ArbBitInt] that performs bitwise `OR` on `self` and `other`.
     ///
     /// # Panics
