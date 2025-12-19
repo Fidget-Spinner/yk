@@ -66,11 +66,6 @@ impl KnownBitValue {
         }
     }
 
-    /// Check self is equivalent to other in terms of known bits.
-    fn equiv(&self, other: &KnownBitValue) -> bool {
-        self.ones == other.ones && self.unknowns == other.unknowns
-    }
-
     /// CHeck self is contained by the other in terms of known bits.
     /// In other words, other contains more information than self.
     fn contained_by(&self, other: &KnownBitValue) -> bool {
