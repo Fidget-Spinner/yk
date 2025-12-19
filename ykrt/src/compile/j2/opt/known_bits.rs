@@ -9,7 +9,6 @@ use crate::compile::{
     j2::{
         hir::*,
         opt::opt::{Opt, OptOutcome},
-        opt::OptT,
     },
     jitc_yk::arbbitint::ArbBitInt,
 };
@@ -137,7 +136,6 @@ impl KnownBits {
         match inst {
             Inst::And(x) => opt_and(opt, x),
             Inst::Const(x) => opt_const(opt, x),
-            Inst::ICmp(x) => opt_icmp(opt, x),
             Inst::Or(x) => opt_or(opt, x),
             _ => OptOutcome::Rewritten(inst),
         }
@@ -198,32 +196,6 @@ fn opt_const(opt: &mut Opt, inst: Const) -> OptOutcome {
     let Const { tyidx: _, kind } = &inst;
     if let ConstKind::Int(kind) = kind {
         opt.set_known_bits(KnownBitValue::from_constant(kind))
-    }
-    OptOutcome::Rewritten(inst.into())
-}
-
-fn opt_icmp(opt: &mut Opt, mut inst: ICmp) -> OptOutcome {
-    inst.canonicalise(opt);
-    let ICmp {
-        pred,
-        lhs,
-        rhs,
-        samesign,
-    } = inst;
-    assert!(!samesign);
-    let lhs_b = opt.as_known_bits(lhs, opt.inst_bitw(opt, lhs));
-    let rhs_b = opt.as_known_bits(rhs, opt.inst_bitw(opt, rhs));
-    if rhs_b.all_known() && lhs_b.all_known() {
-        if let IPred::Eq = pred {
-            let b = rhs_b.contained_by(&lhs_b);
-            let tyidx = opt.push_ty(Ty::Int(b as u32)).unwrap();
-            let b_as_int = ArbBitInt::from_u64(1, b as u64);
-            opt.set_known_bits(KnownBitValue::from_constant(&b_as_int));
-            return OptOutcome::Rewritten(Inst::Const(Const {
-                tyidx,
-                kind: ConstKind::Int(b_as_int),
-            }))
-        }
     }
     OptOutcome::Rewritten(inst.into())
 }
@@ -390,25 +362,23 @@ mod test {
     }
 
     #[test]
-    fn opt_icmp() {
-        // Test that icmp is eliminated
-        // when bits are known to match.
+    fn opt_and_or() {
+        // Test that and is eliminated
+        // if a bit is set by or.
         test_known_bits(
             "
           %0: i8 = arg [reg]
           %1: i8 = 1
           %2: i8 = or %0, %1
           %3: i8 = and %2, %1
-          %4: i1 = icmp eq %3, %1
-          blackbox %4
+          blackbox %3
         ",
             "
           %0: i8 = arg
           %1: i8 = 1
           %2: i8 = or %0, %1
           %3: i8 = 1
-          %4: i1 = 1
-          blackbox %4
+          blackbox %3
         ",
         );
     }
