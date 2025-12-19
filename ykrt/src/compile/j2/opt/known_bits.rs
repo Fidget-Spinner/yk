@@ -55,10 +55,6 @@ impl KnownBitValue {
         }
     }
 
-    fn contained_by(&self, other: &KnownBitValue) -> bool {
-        self.ones == other.ones && self.unknowns == other.unknowns
-    }
-
     fn as_int(&self) -> ArbBitInt {
         assert!(self.all_known());
         self.ones.clone()
@@ -82,6 +78,10 @@ impl KnownBitValue {
     /// Returns an integer where the places that are known zeros have a bit set
     fn zeroes(&self) -> ArbBitInt {
         self.knowns().bitand(&self.ones.bitneg())
+    }
+
+    fn known_ones(&self) -> ArbBitInt {
+        self.knowns().bitand(&self.ones)
     }
 
     fn and(&self, other: &KnownBitValue) -> KnownBitValue {
@@ -175,7 +175,8 @@ fn opt_and(opt: &mut Opt, mut inst: And) -> OptOutcome {
     // lhs = any and rhs = constant
     // If no new information is gained, that means this
     // op was useless.
-    if rhs_b.all_known() && res.contained_by(&lhs_b) {
+    // All 0 bits in RHS must thus be known-zero in LHS.
+    if rhs_b.all_known() && (res.zeroes() == lhs_b.zeroes()) {
         return OptOutcome::Equiv(lhs);
     }
 
@@ -214,7 +215,7 @@ fn opt_or(opt: &mut Opt, mut inst: Or) -> OptOutcome {
     // lhs = any and rhs = constant
     // If no new information is gained, that means this
     // op was useless.
-    if rhs_b.all_known() && res.contained_by(&lhs_b) {
+    if rhs_b.all_known() && (res.known_ones() == lhs_b.known_ones()) {
         return OptOutcome::Equiv(lhs);
     }
 
