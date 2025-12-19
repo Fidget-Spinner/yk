@@ -97,24 +97,19 @@ impl KnownBitValue {
     fn and(&self, other: &KnownBitValue) -> KnownBitValue {
         let set_ones = self.ones.bitand(&other.ones);
         let set_zeroes = self.zeroes().bitor(&other.zeroes());
-        // The things we know are the set zeroes and the set ones.
-        let knowns = set_zeroes.bitor(&set_ones);
+        let unknowns = self.unknowns.bitor(&other.unknowns).bitand(&set_zeroes.bitneg());
         KnownBitValue {
             ones: set_ones,
-            // The unknown is just what is not known.
-            unknowns: knowns.bitneg(),
+            unknowns,
         }
     }
 
     fn or(&self, other: &KnownBitValue) -> KnownBitValue {
         let set_ones = self.ones.bitor(&other.ones);
-        let set_zeroes = self.zeroes().bitand(&other.zeroes());
-        // The things we know are the set zeroes and the set ones.
-        let knowns = set_zeroes.bitor(&set_ones);
+        let unknowns = self.unknowns.bitor(&other.unknowns).bitand(&set_ones.bitneg());
         KnownBitValue {
             ones: set_ones,
-            // The unknown is just what is not known.
-            unknowns: knowns.bitneg(),
+            unknowns
         }
     }
 }
