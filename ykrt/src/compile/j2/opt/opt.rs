@@ -102,19 +102,17 @@ impl Opt {
         // most strength reduction operations in known bits analysis.
         match KnownBits::known_bits_step(self, inst) {
             OptOutcome::NotNeeded => Ok(None),
-            OptOutcome::Rewritten(inst) => {
-                match strength_fold(self, inst) {
-                    OptOutcome::NotNeeded => Ok(None),
-                    OptOutcome::Rewritten(inst) => {
-                        if let Some(iidx) = self.cse.is_equiv(self, &inst) {
-                            Ok(Some(iidx))
-                        } else {
-                            Ok(Some(self.push_inst(inst)))
-                        }
-                    },
-                    OptOutcome::Equiv(iidx) => Ok(Some(iidx)),
+            OptOutcome::Rewritten(inst) => match strength_fold(self, inst) {
+                OptOutcome::NotNeeded => Ok(None),
+                OptOutcome::Rewritten(inst) => {
+                    if let Some(iidx) = self.cse.is_equiv(self, &inst) {
+                        Ok(Some(iidx))
+                    } else {
+                        Ok(Some(self.push_inst(inst)))
+                    }
                 }
-            }
+                OptOutcome::Equiv(iidx) => Ok(Some(iidx)),
+            },
             OptOutcome::Equiv(iidx) => Ok(Some(iidx)),
         }
     }
