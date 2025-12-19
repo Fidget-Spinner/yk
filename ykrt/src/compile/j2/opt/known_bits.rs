@@ -12,6 +12,7 @@ use crate::compile::{
     },
     jitc_yk::arbbitint::ArbBitInt,
 };
+use crate::compile::j2::opt::OptT;
 
 /// Known bits for a single value.
 ///
@@ -48,7 +49,7 @@ impl KnownBitValue {
         }
     }
 
-    fn unknown(bitw: u32) -> Self {
+    pub fn unknown(bitw: u32) -> Self {
         KnownBitValue {
             ones: ArbBitInt::from_u64(bitw, 0),
             unknowns: ArbBitInt::from_u64(bitw, 1),
@@ -74,12 +75,17 @@ impl KnownBitValue {
     }
 
     /// CHeck self is contained by the other in terms of known bits.
-    /// In other words, other ocntains more information than self.
-    fn contains(&self, other: &KnownBitValue) -> bool {
+    /// In other words, other contains more information than self.
+    fn contained_by(&self, other: &KnownBitValue) -> bool {
         if self.ones != other.ones {
             return false;
         }
         self.unknowns.bitand(&other.unknowns).eq(&self.unknowns)
+    }
+
+    fn as_int(&self) -> ArbBitInt {
+        assert!(self.all_known());
+        self.ones.clone()
     }
 
     fn all_known(&self) -> bool {
@@ -129,7 +135,7 @@ impl KnownBitValue {
 
 /// For the known bits analysis, we map each SSA value to a KnownBitValue.
 pub(super) struct KnownBits {
-    ssa_bits: Vec<KnownBitValue>,
+    pub(super) ssa_bits: Vec<KnownBitValue>,
 }
 
 impl KnownBits {
@@ -144,14 +150,10 @@ impl KnownBits {
         match inst {
             Inst::And(x) => opt_and(opt, x),
             Inst::Const(x) => opt_const(opt, x),
+            Inst::ICmp(x) => opt_icmp(opt, x),
             Inst::Or(x) => opt_or(opt, x),
             _ => OptOutcome::Rewritten(inst),
         }
-    }
-
-    pub(super) fn push(&mut self) {
-        // For now, we only support up to 64-bits.
-        self.ssa_bits.push(KnownBitValue::unknown(64));
     }
 
     pub(super) fn get_inst(&mut self, iidx: InstIdx, bitw: u32) -> KnownBitValue {
@@ -180,19 +182,25 @@ fn opt_and(opt: &mut Opt, mut inst: And) -> OptOutcome {
         return OptOutcome::Rewritten(inst.into());
     }
 
-    println!("{}, {}", res.ones, res.unknowns);
+    // If we know the output's bits, emit that.
+    if res.all_known() {
+        return OptOutcome::Rewritten(Inst::Const(Const {
+            tyidx,
+            kind: ConstKind::Int(res.as_int()),
+        }))
+    }
 
     // lhs = any and rhs = constant
-    // if no new information is gained, that means this
+    // If no new information is gained, that means this
     // op was useless.
-    if rhs_b.all_known() && res.contains(&lhs_b) {
+    if rhs_b.all_known() && res.contained_by(&lhs_b) {
         return OptOutcome::Equiv(lhs);
     }
 
     // lhs = constant and rhs = any
-    // if no new information is gained, that means this
+    // If no new information is gained, that means this
     // op was useless.
-    if lhs_b.all_known() && res.contains(&rhs_b) {
+    if lhs_b.all_known() && res.contained_by(&rhs_b) {
         return OptOutcome::Equiv(rhs);
     }
 
@@ -205,6 +213,31 @@ fn opt_const(opt: &mut Opt, inst: Const) -> OptOutcome {
         opt.set_known_bits(KnownBitValue::from_constant(kind))
     }
     OptOutcome::Rewritten(inst.into())
+}
+
+fn opt_icmp(opt: &mut Opt, mut inst: ICmp) -> OptOutcome {
+    inst.canonicalise(opt);
+    let ICmp {
+        pred,
+        lhs,
+        rhs,
+        samesign,
+    } = inst;
+    assert!(!samesign);
+    let lhs_b = opt.as_known_bits(lhs, opt.inst_bitw(opt, lhs));
+    let rhs_b = opt.as_known_bits(rhs, opt.inst_bitw(opt, rhs));
+    match pred {
+        IPred::Eq if rhs_b.all_known() => {
+            let tyidx = opt.push_ty(Ty::Int(1)).unwrap();
+            let b = rhs_b.contained_by(&lhs_b) as u64;
+            opt.set_known_bits(KnownBitValue::from_constant(&ArbBitInt::from_u64(1, b)));
+            return OptOutcome::Rewritten(Inst::Const(Const {
+                tyidx,
+                kind: ConstKind::Int(ArbBitInt::from_u64(1, b)),
+            }))
+        }
+        _ => OptOutcome::Rewritten(inst.into())
+    }
 }
 
 fn opt_or(opt: &mut Opt, mut inst: Or) -> OptOutcome {
@@ -225,17 +258,25 @@ fn opt_or(opt: &mut Opt, mut inst: Or) -> OptOutcome {
         return OptOutcome::Rewritten(inst.into());
     }
 
+    // If we know the output's bits, emit that.
+    if res.all_known() {
+        return OptOutcome::Rewritten(Inst::Const(Const {
+            tyidx,
+            kind: ConstKind::Int(res.as_int()),
+        }))
+    }
+
     // lhs = any and rhs = constant
-    // if no new information is gained, that means this
+    // If no new information is gained, that means this
     // op was useless.
-    if rhs_b.all_known() && res.contains(&lhs_b) {
+    if rhs_b.all_known() && res.contained_by(&lhs_b) {
         return OptOutcome::Equiv(lhs);
     }
 
     // lhs = constant and rhs = any
-    // if no new information is gained, that means this
+    // If no new information is gained, that means this
     // op was useless.
-    if lhs_b.all_known() && res.contains(&rhs_b) {
+    if lhs_b.all_known() && res.contained_by(&rhs_b) {
         return OptOutcome::Equiv(rhs);
     }
 
@@ -246,14 +287,20 @@ fn opt_or(opt: &mut Opt, mut inst: Or) -> OptOutcome {
 mod test {
     use super::*;
     use crate::compile::j2::opt::{known_bits::KnownBits, opt::test::opt_and_test};
+    use crate::compile::j2::opt::strength_fold::strength_fold;
 
     fn test_known_bits(mod_s: &str, ptn: &str) {
         opt_and_test(
             mod_s,
             |opt, mut inst| {
-                opt.known_bits_new_iidx();
+                opt.known_bits_new_inst(&inst);
                 inst.canonicalise(opt);
-                KnownBits::known_bits_step(opt, inst)
+                match KnownBits::known_bits_step(opt, inst) {
+                    OptOutcome::Rewritten(inst) => {
+                        strength_fold(opt, inst)
+                    }
+                    outcome => outcome,
+                }
             },
             ptn,
         );
@@ -261,9 +308,8 @@ mod test {
 
     #[test]
     fn opt_and() {
-        // Test bitwise and
         // any = any & 1
-        // any =  any & 11 <-- should be removed
+        // any = any & 11 <-- should be removed
         test_known_bits(
             "
           %0: i8 = arg [reg]
@@ -282,7 +328,6 @@ mod test {
         ",
         );
 
-        // Test bitwise and
         // any = any & 1
         // any = any & 10 <-- should not be removed
         test_known_bits(
@@ -310,7 +355,7 @@ mod test {
         // Test bitwise or
         // any = any | 01
         // any = any | 10
-        // any = any | 11 <-- this should be removed
+        // any = any | 11 <-- should be removed
         test_known_bits(
             "
           %0: i8 = arg [reg]
@@ -354,6 +399,94 @@ mod test {
           %4: i8 = or %0, %1
           %5: i8 = or %4, %2
           blackbox %5
+        ",
+        );
+    }
+
+    #[test]
+    fn opt_icmp() {
+        // Test that icmp is eliminated
+        // when bits are known to match.
+        test_known_bits(
+            "
+          %0: i8 = arg [reg]
+          %1: i8 = 1
+          %2: i8 = or %0, %1
+          %3: i1 = icmp eq %2, %1
+          blackbox %3
+        ",
+            "
+          %0: i8 = arg
+          %1: i8 = 1
+          %2: i8 = or %0, %1
+          %3: i1 = 1
+          blackbox %3
+        ",
+        );
+
+        // Test that icmp is not eliminated
+        // when bits are not known to match.
+        test_known_bits(
+            "
+          %0: i8 = arg [reg]
+          %1: i8 = 2
+          %2: i8 = or %0, %1
+          %3: i1 = icmp eq %2, %0
+          blackbox %3
+        ",
+            "
+          %0: i8 = arg
+          %1: i8 = 2
+          %2: i8 = or %0, %1
+          %3: i1 = icmp eq %2, %0
+          blackbox %3
+        ",
+        );
+    }
+
+    /// Note that guard elimination naturally
+    /// falls out of known bits combined with strength reduction.
+    /// Thus, there isn't actually an opt_guard implemented above.
+    #[test]
+    fn opt_guard() {
+        // Test that guard is eliminated
+        // when bits are known to match.
+        test_known_bits(
+            "
+          %0: i8 = arg [reg]
+          %1: i8 = 1
+          %2: i8 = or %0, %1
+          %3: i1 = icmp eq %2, %1
+          guard true, %3, []
+          blackbox %3
+        ",
+            "
+          %0: i8 = arg
+          %1: i8 = 1
+          %2: i8 = or %0, %1
+          %3: i1 = 1
+          blackbox %3
+        ",
+        );
+
+        // Test that guard is not eliminated
+        // when bits are not known to match.
+        test_known_bits(
+            "
+          %0: i8 = arg [reg]
+          %1: i8 = 2
+          %2: i8 = or %0, %1
+          %3: i1 = icmp eq %2, %0
+          guard true, %3, []
+          blackbox %3
+        ",
+            "
+          %0: i8 = arg
+          %1: i8 = 2
+          %2: i8 = or %0, %1
+          %3: i1 = icmp eq %2, %0
+          guard true, %3, []
+          blackbox %3
         ",
         );
     }

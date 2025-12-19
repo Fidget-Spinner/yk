@@ -97,20 +97,24 @@ impl Opt {
 
     /// Used by [Self::feed] and [Self::feed_void].
     fn feed_internal(&mut self, inst: Inst) -> Result<Option<InstIdx>, CompilationError> {
-        self.known_bits_new_iidx();
-        match strength_fold(self, inst) {
+        self.known_bits_new_inst(&inst);
+        // For now, we put known bits before strength fold so we don't have to duplicate
+        // most strength reduction operations in known bits analysis.
+        match KnownBits::known_bits_step(self, inst) {
             OptOutcome::NotNeeded => Ok(None),
-            OptOutcome::Rewritten(inst) => match KnownBits::known_bits_step(self, inst) {
-                OptOutcome::NotNeeded => Ok(None),
-                OptOutcome::Rewritten(inst) => {
-                    if let Some(iidx) = self.cse.is_equiv(self, &inst) {
-                        Ok(Some(iidx))
-                    } else {
-                        Ok(Some(self.push_inst(inst)))
-                    }
+            OptOutcome::Rewritten(inst) => {
+                match strength_fold(self, inst) {
+                    OptOutcome::NotNeeded => Ok(None),
+                    OptOutcome::Rewritten(inst) => {
+                        if let Some(iidx) = self.cse.is_equiv(self, &inst) {
+                            Ok(Some(iidx))
+                        } else {
+                            Ok(Some(self.push_inst(inst)))
+                        }
+                    },
+                    OptOutcome::Equiv(iidx) => Ok(Some(iidx)),
                 }
-                OptOutcome::Equiv(iidx) => Ok(Some(iidx)),
-            },
+            }
             OptOutcome::Equiv(iidx) => Ok(Some(iidx)),
         }
     }
@@ -133,9 +137,16 @@ impl Opt {
         }
     }
 
-    pub(super) fn known_bits_new_iidx(&mut self) {
-        self.known_bits.push();
+    pub(super) fn known_bits_new_inst(&mut self, inst: &Inst) {
+        self.known_bits
+            .ssa_bits
+            .push(KnownBitValue::unknown(match inst.ty(self) {
+                Ty::Func(_) => 0,
+                Ty::Void => 0,
+                ty => ty.bitw(),
+            }));
     }
+
     pub(super) fn as_known_bits(&mut self, iidx: InstIdx, bitw: u32) -> KnownBitValue {
         self.known_bits.get_inst(iidx, bitw)
     }
