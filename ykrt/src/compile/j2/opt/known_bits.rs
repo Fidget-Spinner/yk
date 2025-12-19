@@ -34,7 +34,7 @@ use crate::compile::{
 #[derive(Clone)]
 pub struct KnownBitValue {
     ones: ArbBitInt,
-    unknowns: ArbBitInt,
+    pub unknowns: ArbBitInt,
 }
 
 /// Full credits to the PyPy blog post for some of the functions here:
@@ -175,8 +175,9 @@ fn opt_and(opt: &mut Opt, mut inst: And) -> OptOutcome {
     // lhs = any and rhs = constant
     // If no new information is gained, that means this
     // op was useless.
-    // All 0 bits in RHS must thus be known-zero in LHS.
-    if rhs_b.all_known() && (res.zeroes() == lhs_b.zeroes()) {
+    println!("{}, {}", rhs_b.zeroes(), lhs_b.unknowns);
+    if rhs_b.all_known() &&
+        (rhs_b.zeroes().bitand(&lhs_b.unknowns).count_ones().eq(&0)) {
         return OptOutcome::Equiv(lhs);
     }
 
@@ -215,7 +216,8 @@ fn opt_or(opt: &mut Opt, mut inst: Or) -> OptOutcome {
     // lhs = any and rhs = constant
     // If no new information is gained, that means this
     // op was useless.
-    if rhs_b.all_known() && (res.known_ones() == lhs_b.known_ones()) {
+    if rhs_b.all_known() &&
+        (rhs_b.known_ones().bitand(&lhs_b.unknowns).count_ones().eq(&0)) {
         return OptOutcome::Equiv(lhs);
     }
 
