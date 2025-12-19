@@ -148,8 +148,8 @@ impl Opt {
         self.known_bits.contradiction
     }
 
-    pub(super) fn as_known_bits(&mut self, iidx: InstIdx, bitw: u32) -> KnownBitValue {
-        self.known_bits.get_inst(iidx, bitw)
+    pub(super) fn as_known_bits(&mut self, iidx: InstIdx) -> KnownBitValue {
+        self.known_bits.get_inst(iidx)
     }
 
     pub(super) fn set_known_bits(&mut self, value: KnownBitValue) {

@@ -55,16 +55,6 @@ impl KnownBitValue {
         }
     }
 
-    fn set_bitw(&self, bitw: u32) -> KnownBitValue {
-        if self.ones.bitw() == bitw && self.unknowns.bitw() == bitw {
-            return self.clone();
-        }
-        KnownBitValue {
-            ones: ArbBitInt::from_u64(bitw, 0),
-            unknowns: ArbBitInt::from_u64(bitw, 1),
-        }
-    }
-
     fn contained_by(&self, other: &KnownBitValue) -> bool {
         self.ones == other.ones && self.unknowns == other.unknowns
     }
@@ -97,7 +87,10 @@ impl KnownBitValue {
     fn and(&self, other: &KnownBitValue) -> KnownBitValue {
         let set_ones = self.ones.bitand(&other.ones);
         let set_zeroes = self.zeroes().bitor(&other.zeroes());
-        let unknowns = self.unknowns.bitor(&other.unknowns).bitand(&set_zeroes.bitneg());
+        let unknowns = self
+            .unknowns
+            .bitor(&other.unknowns)
+            .bitand(&set_zeroes.bitneg());
         KnownBitValue {
             ones: set_ones,
             unknowns,
@@ -106,10 +99,13 @@ impl KnownBitValue {
 
     fn or(&self, other: &KnownBitValue) -> KnownBitValue {
         let set_ones = self.ones.bitor(&other.ones);
-        let unknowns = self.unknowns.bitor(&other.unknowns).bitand(&set_ones.bitneg());
+        let unknowns = self
+            .unknowns
+            .bitor(&other.unknowns)
+            .bitand(&set_ones.bitneg());
         KnownBitValue {
             ones: set_ones,
-            unknowns
+            unknowns,
         }
     }
 }
@@ -131,7 +127,7 @@ impl KnownBits {
 
     pub(super) fn known_bits_step(opt: &mut Opt, inst: Inst) -> OptOutcome {
         if opt.known_bits_contradiction() {
-            return OptOutcome::Rewritten(inst)
+            return OptOutcome::Rewritten(inst);
         }
         let inst_copy = inst.clone();
         let outcome = match inst {
@@ -147,11 +143,11 @@ impl KnownBits {
         }
     }
 
-    pub(super) fn get_inst(&mut self, iidx: InstIdx, bitw: u32) -> KnownBitValue {
+    pub(super) fn get_inst(&mut self, iidx: InstIdx) -> KnownBitValue {
         if iidx > self.ssa_bits.len() {
             panic!("Corrupted SSA form---use not dominated by def.")
         }
-        self.ssa_bits[iidx.index()].set_bitw(bitw)
+        self.ssa_bits[iidx.index()].clone()
     }
 
     pub(super) fn set_inst_known_bit(&mut self, value: KnownBitValue) {
@@ -163,9 +159,8 @@ impl KnownBits {
 fn opt_and(opt: &mut Opt, mut inst: And) -> OptOutcome {
     inst.canonicalise(opt);
     let And { tyidx, lhs, rhs } = inst;
-    let bitw = opt.ty(tyidx).bitw();
-    let lhs_b = opt.as_known_bits(lhs, bitw);
-    let rhs_b = opt.as_known_bits(rhs, bitw);
+    let lhs_b = opt.as_known_bits(lhs);
+    let rhs_b = opt.as_known_bits(rhs);
     let res = lhs_b.and(&rhs_b);
     opt.set_known_bits(res.clone());
 
@@ -210,9 +205,8 @@ fn opt_or(opt: &mut Opt, mut inst: Or) -> OptOutcome {
         rhs,
         disjoint: _,
     } = inst;
-    let bitw = opt.ty(tyidx).bitw();
-    let lhs_b = opt.as_known_bits(lhs, bitw);
-    let rhs_b = opt.as_known_bits(rhs, bitw);
+    let lhs_b = opt.as_known_bits(lhs);
+    let rhs_b = opt.as_known_bits(rhs);
     let res = lhs_b.or(&rhs_b);
     opt.set_known_bits(res.clone());
 
@@ -377,6 +371,77 @@ mod test {
           %2: i8 = or %0, %1
           %3: i8 = 1
           blackbox %3
+        ",
+        );
+    }
+
+    #[test]
+    fn with_intermediate() {
+        // Test that other instructions stay around
+        test_known_bits(
+            "
+          %0: ptr = arg [reg]
+          %1: ptr = ptradd %0, 8
+          %2: i8 = load %1
+          %3: i8 = 15
+          %4: i8 = and %2, %3
+          %5: i8 = 0
+          %6: i1 = icmp eq %4, %5
+          blackbox %6
+        ",
+            "
+          %0: ptr = arg
+          %1: ptr = ptradd %0, 8
+          %2: i8 = load %1
+          %3: i8 = 15
+          %4: i8 = and %2, %3
+          %5: i8 = 0
+          %6: i1 = icmp eq %4, %5
+          blackbox %6
+        ",
+        );
+
+        test_known_bits(
+            "
+          %0: ptr = arg [reg]
+          %1: i8 = load %0
+          %2: i8 = 15
+          %3: i8 = and %1, %2
+          %4: i8 = 0
+          %5: i1 = icmp eq %3, %4
+          blackbox %5
+        ",
+            "
+          %0: ptr = arg
+          %1: i8 = load %0
+          %2: i8 = 15
+          %3: i8 = and %1, %2
+          %4: i8 = 0
+          %5: i1 = icmp eq %3, %4
+          blackbox %5
+        ",
+        );
+
+        test_known_bits(
+            "
+          %0: ptr = arg [reg]
+          %1: i32 = arg [reg]
+          %2: ptr = ptradd %0, 4
+          %3: i32 = 127
+          %4: i32 = and %1, %3
+          %5: i32 = 34
+          %6: i1 = icmp eq %4, %5
+          blackbox %6
+        ",
+            "
+          %0: ptr = arg
+          %1: i32 = arg
+          %2: ptr = ptradd %0, 4
+          %3: i32 = 127
+          %4: i32 = and %1, %3
+          %5: i32 = 34
+          %6: i1 = icmp eq %4, %5
+          blackbox %6
         ",
         );
     }
