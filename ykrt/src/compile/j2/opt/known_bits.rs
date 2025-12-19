@@ -179,13 +179,6 @@ fn opt_and(opt: &mut Opt, mut inst: And) -> OptOutcome {
         return OptOutcome::Equiv(lhs);
     }
 
-    // lhs = constant and rhs = any
-    // If no new information is gained, that means this
-    // op was useless.
-    if lhs_b.all_known() && res.contained_by(&rhs_b) {
-        return OptOutcome::Equiv(rhs);
-    }
-
     OptOutcome::Rewritten(inst.into())
 }
 
@@ -223,13 +216,6 @@ fn opt_or(opt: &mut Opt, mut inst: Or) -> OptOutcome {
     // op was useless.
     if rhs_b.all_known() && res.contained_by(&lhs_b) {
         return OptOutcome::Equiv(lhs);
-    }
-
-    // lhs = constant and rhs = any
-    // If no new information is gained, that means this
-    // op was useless.
-    if lhs_b.all_known() && res.contained_by(&rhs_b) {
-        return OptOutcome::Equiv(rhs);
     }
 
     OptOutcome::Rewritten(inst.into())
@@ -296,6 +282,22 @@ mod test {
           %3: i8 = and %0, %1
           %4: i8 = and %3, %2
           blackbox %4
+        ",
+        );
+
+        // any & any
+        test_known_bits(
+            "
+          %0: i8 = arg [reg]
+          %1: i8 = arg [reg]
+          %2: i8 = and %0, %1
+          blackbox %2
+        ",
+            "
+          %0: i8 = arg
+          %1: i8 = arg
+          %2: i8 = and %0, %1
+          blackbox %2
         ",
         );
     }
