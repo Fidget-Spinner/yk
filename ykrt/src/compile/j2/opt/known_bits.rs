@@ -78,9 +78,9 @@ impl KnownBitValue {
         self.unknowns.count_ones() == 0
     }
 
-    /// This usually means either a bug in our code, malformed HIR.
+    /// This usually means either a bug in our code or malformed HIR.
     /// In which case, it's time to bail.
-    fn contradiction(&self) -> bool {
+    pub fn contradiction(&self) -> bool {
         self.ones.bitand(&self.unknowns).count_ones() != 0
     }
 
@@ -117,6 +117,7 @@ impl KnownBitValue {
 /// For the known bits analysis, we map each SSA value to a KnownBitValue.
 pub(super) struct KnownBits {
     pub(super) ssa_bits: Vec<KnownBitValue>,
+    pub(super) contradiction: bool,
 }
 
 impl KnownBits {
@@ -124,15 +125,24 @@ impl KnownBits {
     pub(super) fn new() -> Self {
         KnownBits {
             ssa_bits: Vec::new(),
+            contradiction: false,
         }
     }
 
     pub(super) fn known_bits_step(opt: &mut Opt, inst: Inst) -> OptOutcome {
-        match inst {
+        if opt.known_bits_contradiction() {
+            return OptOutcome::Rewritten(inst)
+        }
+        let outcome = match inst.into() {
             Inst::And(x) => opt_and(opt, x),
             Inst::Const(x) => opt_const(opt, x),
             Inst::Or(x) => opt_or(opt, x),
             _ => OptOutcome::Rewritten(inst),
+        };
+        if opt.known_bits_contradiction() {
+            OptOutcome::Rewritten(inst)
+        } else {
+            outcome
         }
     }
 
@@ -157,10 +167,6 @@ fn opt_and(opt: &mut Opt, mut inst: And) -> OptOutcome {
     let rhs_b = opt.as_known_bits(rhs, bitw);
     let res = lhs_b.and(&rhs_b);
     opt.set_known_bits(res.clone());
-
-    if res.contradiction() {
-        return OptOutcome::Rewritten(inst.into());
-    }
 
     // If we know the output's bits, emit that.
     if res.all_known() {
@@ -208,10 +214,6 @@ fn opt_or(opt: &mut Opt, mut inst: Or) -> OptOutcome {
     let rhs_b = opt.as_known_bits(rhs, bitw);
     let res = lhs_b.or(&rhs_b);
     opt.set_known_bits(res.clone());
-
-    if res.contradiction() {
-        return OptOutcome::Rewritten(inst.into());
-    }
 
     // If we know the output's bits, emit that.
     if res.all_known() {
