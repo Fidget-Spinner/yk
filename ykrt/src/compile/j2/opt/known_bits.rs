@@ -211,22 +211,21 @@ fn opt_icmp(opt: &mut Opt, mut inst: ICmp) -> OptOutcome {
         samesign,
     } = inst;
     assert!(!samesign);
-    let lhs_b = opt.as_known_bits(lhs, opt.inst_bitw(opt, lhs));
-    let rhs_b = opt.as_known_bits(rhs, opt.inst_bitw(opt, rhs));
-    match pred {
-        // We can only deduce if we match. We can't deduce
-        // anything if they don't.
-        IPred::Eq if rhs_b.all_known() && lhs_b.all_known() && rhs_b.contained_by(&lhs_b) => {
-            let tyidx = opt.push_ty(Ty::Int(1)).unwrap();
-            let one = ArbBitInt::from_u64(1, 1);
-            opt.set_known_bits(KnownBitValue::from_constant(&one));
-            OptOutcome::Rewritten(Inst::Const(Const {
-                tyidx,
-                kind: ConstKind::Int(one),
-            }))
-        }
-        _ => OptOutcome::Rewritten(inst.into()),
-    }
+    // let lhs_b = opt.as_known_bits(lhs, opt.inst_bitw(opt, lhs));
+    // let rhs_b = opt.as_known_bits(rhs, opt.inst_bitw(opt, rhs));
+    // if rhs_b.all_known() && lhs_b.all_known() {
+    //     if let IPred::Eq = pred {
+    //         let b = rhs_b.contained_by(&lhs_b);
+    //         let tyidx = opt.push_ty(Ty::Int(b as u32)).unwrap();
+    //         let b_as_int = ArbBitInt::from_u64(1, b as u64);
+    //         opt.set_known_bits(KnownBitValue::from_constant(&b_as_int));
+    //         return OptOutcome::Rewritten(Inst::Const(Const {
+    //             tyidx,
+    //             kind: ConstKind::Int(b_as_int),
+    //         }))
+    //     }
+    // }
+    OptOutcome::Rewritten(inst.into())
 }
 
 fn opt_or(opt: &mut Opt, mut inst: Or) -> OptOutcome {
