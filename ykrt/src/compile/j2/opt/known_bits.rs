@@ -133,14 +133,15 @@ impl KnownBits {
         if opt.known_bits_contradiction() {
             return OptOutcome::Rewritten(inst)
         }
-        let outcome = match inst.into() {
+        let inst_copy = inst.clone();
+        let outcome = match inst {
             Inst::And(x) => opt_and(opt, x),
             Inst::Const(x) => opt_const(opt, x),
             Inst::Or(x) => opt_or(opt, x),
             _ => OptOutcome::Rewritten(inst),
         };
         if opt.known_bits_contradiction() {
-            OptOutcome::Rewritten(inst)
+            OptOutcome::Rewritten(inst_copy)
         } else {
             outcome
         }
