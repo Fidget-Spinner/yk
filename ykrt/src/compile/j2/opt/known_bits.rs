@@ -175,9 +175,8 @@ fn opt_and(opt: &mut Opt, mut inst: And) -> OptOutcome {
     // lhs = any and rhs = constant
     // If no new information is gained, that means this
     // op was useless.
-    println!("{}, {}", rhs_b.zeroes(), lhs_b.unknowns);
     if rhs_b.all_known() &&
-        (rhs_b.zeroes().bitand(&lhs_b.unknowns).count_ones().eq(&0)) {
+        (rhs_b.zeroes().bitand(&lhs_b.known_ones().bitor(&lhs_b.unknowns)).count_ones() == 0) {
         return OptOutcome::Equiv(lhs);
     }
 
@@ -217,7 +216,7 @@ fn opt_or(opt: &mut Opt, mut inst: Or) -> OptOutcome {
     // If no new information is gained, that means this
     // op was useless.
     if rhs_b.all_known() &&
-        (rhs_b.known_ones().bitand(&lhs_b.unknowns).count_ones().eq(&0)) {
+        (rhs_b.known_ones().bitand(&lhs_b.zeroes().bitor(&lhs_b.unknowns)).count_ones() == 0) {
         return OptOutcome::Equiv(lhs);
     }
 
