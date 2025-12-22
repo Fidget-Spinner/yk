@@ -86,6 +86,7 @@ impl KnownBitValue {
 
     fn and(&self, other: &KnownBitValue) -> KnownBitValue {
         assert_eq!(self.ones.bitw(), self.unknowns.bitw());
+        println!("{}, {}", self.ones, other.ones);
         assert_eq!(self.ones.bitw(), other.ones.bitw());
         assert_eq!(self.unknowns.bitw(), other.unknowns.bitw());
         let set_ones = self.ones.bitand(&other.ones);
