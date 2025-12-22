@@ -168,6 +168,7 @@ fn opt_and(opt: &mut Opt, mut inst: And) -> OptOutcome {
     let And { tyidx, lhs, rhs } = inst;
     let lhs_b = opt.as_known_bits(lhs);
     let rhs_b = opt.as_known_bits(rhs);
+    println!("IDX {}, {}", lhs.index(), rhs.index());
     let res = lhs_b.and(&rhs_b);
     opt.set_known_bits(res.clone());
 
