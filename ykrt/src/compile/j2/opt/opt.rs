@@ -115,12 +115,11 @@ impl Opt {
         //     },
         //     OptOutcome::Equiv(iidx) => Ok(Some(iidx)),
         // }
-        // match KnownBits::known_bits_step(self, inst) {
-        //     OptOutcome::NotNeeded => Ok(None),
-        //     OptOutcome::Rewritten(inst) => Ok(Some(self.push_inst(inst))),
-        //     OptOutcome::Equiv(iidx) => Ok(Some(iidx)),
-        // }
-        Ok(Some(self.push_inst(inst)))
+        match KnownBits::known_bits_step(self, inst) {
+            OptOutcome::NotNeeded => Ok(None),
+            OptOutcome::Rewritten(inst) => Ok(Some(self.push_inst(inst))),
+            OptOutcome::Equiv(iidx) => Ok(Some(iidx)),
+        }
     }
 
     /// Push `inst` into this optimisation module.
