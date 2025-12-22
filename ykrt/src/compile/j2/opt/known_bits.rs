@@ -43,7 +43,7 @@ impl KnownBitValue {
     fn from_constant(num: &ArbBitInt) -> Self {
         let bitw = num.bitw();
         KnownBitValue {
-            ones: ArbBitInt::from_u64(bitw, num.to_zero_ext_u64().unwrap()),
+            ones: num.clone(),
             unknowns: ArbBitInt::from_u64(bitw, 0),
         }
     }
