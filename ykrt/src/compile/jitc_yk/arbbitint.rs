@@ -298,7 +298,6 @@ impl ArbBitInt {
     ///
     /// If `self` and `other` are not the same bit width.
     pub(crate) fn bitand(&self, other: &Self) -> Self {
-        println!("{}, {}", self, other);
         assert_eq!(self.bitw, other.bitw);
         Self {
             bitw: self.bitw,
