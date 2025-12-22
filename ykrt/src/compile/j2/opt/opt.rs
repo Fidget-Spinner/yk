@@ -117,7 +117,11 @@ impl Opt {
         // }
         match KnownBits::known_bits_step(self, inst) {
             OptOutcome::NotNeeded => Ok(None),
-            OptOutcome::Rewritten(inst) => Ok(Some(self.push_inst(inst))),
+            OptOutcome::Rewritten(inst) => match strength_fold(self, inst) {
+                OptOutcome::NotNeeded => Ok(None),
+                OptOutcome::Rewritten(inst) => Ok(Some(self.push_inst(inst))),
+                OptOutcome::Equiv(iidx) => Ok(Some(iidx)),
+            },
             OptOutcome::Equiv(iidx) => Ok(Some(iidx)),
         }
     }
