@@ -67,7 +67,7 @@ impl KnownBits {
                 let res = self.known_bits[iidx]
                     .clone()
                     .unwrap_or_else(|| KnownBitValue::unknown(ty.bitw()));
-                println!("Fetch {}", res.ones);
+                println!("Fetch {} {}", iidx.index(), res.ones);
                 res
             }),
         }
