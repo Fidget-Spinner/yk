@@ -161,11 +161,11 @@ impl FullOpt {
     /// Commit `inst` to this trace, deduplicating constants if they already exist earlier in the
     /// trace.
     fn commit_inst_dedup_opt(&mut self, inst: Inst) -> InstIdx {
-        if let Inst::Const(x) = &inst
-            && let Some(x) = self.inner.consts_map.get(&HashableConst(x.to_owned()))
-        {
-            return *x;
-        }
+        // if let Inst::Const(x) = &inst
+        //     && let Some(x) = self.inner.consts_map.get(&HashableConst(x.to_owned()))
+        // {
+        //     return *x;
+        // }
         self.commit_inst(inst)
     }
 
