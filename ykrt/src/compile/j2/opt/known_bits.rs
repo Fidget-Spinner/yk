@@ -45,6 +45,7 @@ impl PassT for KnownBits {
 
     fn inst_committed(&mut self, _opt: &CommitInstOpt, iidx: InstIdx, _inst: &Inst) {
         assert_eq!(iidx.index(), self.known_bits.len());
+        println!("PUSHING {} {}", iidx.index(), self.pending_commit.unwrap_or(KnownBitValue::unknown(64)).ones);
         self.known_bits.push(self.pending_commit.clone());
     }
 }
