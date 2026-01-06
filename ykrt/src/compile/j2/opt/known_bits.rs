@@ -99,6 +99,7 @@ impl KnownBits {
 
             // If we know the output's bits, emit that.
             if res.all_known() {
+                println!("OPT AND CONST\n");
                 return OptOutcome::Rewritten(Inst::Const(Const {
                     tyidx,
                     kind: ConstKind::Int(res.as_arbbitint()),
@@ -115,6 +116,7 @@ impl KnownBits {
                     .count_ones()
                     == 0
             {
+                println!("OPT AND LHS\n");
                 return OptOutcome::Equiv(lhs);
             }
         }
@@ -143,12 +145,14 @@ impl KnownBits {
             let tyidx = opt.push_ty(Ty::Int(1)).unwrap();
             match pred {
                 IPred::Eq if lhs_b.definitely_ne(&rhs_b) => {
+                    println!("OPT ICMP EQ REWRITTEN\n");
                     OptOutcome::Rewritten(Inst::Const(Const {
                         tyidx,
                         kind: ConstKind::Int(ArbBitInt::from_u64(1, 0)),
                     }))
                 }
                 IPred::Ne if lhs_b.definitely_ne(&rhs_b) => {
+                    println!("OPT ICMP NE REWRITTEN\n");
                     OptOutcome::Rewritten(Inst::Const(Const {
                         tyidx,
                         kind: ConstKind::Int(ArbBitInt::from_u64(1, 1)),
@@ -190,6 +194,7 @@ impl KnownBits {
 
             // If we know the output's bits, emit that.
             if res.all_known() {
+                println!("OPT OR CONST\n");
                 return OptOutcome::Rewritten(Inst::Const(Const {
                     tyidx,
                     kind: ConstKind::Int(res.as_arbbitint()),
@@ -206,6 +211,7 @@ impl KnownBits {
                     .count_ones()
                     == 0
             {
+                println!("OPT OR REWRITTEN\n");
                 return OptOutcome::Equiv(lhs);
             }
         }

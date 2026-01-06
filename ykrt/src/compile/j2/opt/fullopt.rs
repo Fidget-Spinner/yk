@@ -123,10 +123,10 @@ impl FullOpt {
     pub(in crate::compile::j2) fn new() -> Self {
         Self {
             passes: [
-                Box::new(KnownBits::new()),
                 Box::new(StrengthFold::new()),
                 Box::new(LoadStore::new()),
                 Box::new(CSE::new()),
+                Box::new(KnownBits::new()),
             ],
             inner: OptInternal {
                 insts: IndexVec::new(),
