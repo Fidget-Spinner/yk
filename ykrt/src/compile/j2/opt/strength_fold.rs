@@ -53,8 +53,6 @@ impl PassT for StrengthFold {
         }
     }
 
-    fn feed_post(&mut self, _iidx: InstIdx, _inst: &Inst) {}
-
     fn inst_committed(&mut self, _opt: &CommitInstOpt, _iidx: InstIdx, _inst: &Inst) {}
 }
 

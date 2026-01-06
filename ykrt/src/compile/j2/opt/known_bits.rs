@@ -43,12 +43,10 @@ impl PassT for KnownBits {
         }
     }
 
-    fn feed_post(&mut self, iidx: InstIdx, _inst: &Inst) {
+    fn inst_committed(&mut self, _opt: &CommitInstOpt, iidx: InstIdx, _inst: &Inst) {
         assert_eq!(iidx.index(), self.known_bits.len());
         self.known_bits.push(self.pending_commit.clone());
     }
-
-    fn inst_committed(&mut self, _opt: &CommitInstOpt, iidx: InstIdx, _inst: &Inst) {}
 }
 
 impl KnownBits {
@@ -438,7 +436,7 @@ mod test {
                     x => x,
                 }
             },
-            |opt, iidx, inst| known_bits.borrow_mut().feed_post(iidx, inst),
+            |opt, iidx, inst| known_bits.borrow_mut().inst_committed(opt, iidx, inst),
             ptn,
         );
     }
