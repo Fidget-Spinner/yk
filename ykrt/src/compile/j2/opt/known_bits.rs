@@ -45,7 +45,6 @@ impl PassT for KnownBits {
 
     fn inst_committed(&mut self, _opt: &CommitInstOpt, iidx: InstIdx, _inst: &Inst) {
         assert_eq!(iidx.index(), self.known_bits.len());
-        println!("{}", iidx.index());
         self.known_bits.push(self.pending_commit.clone());
     }
 }
@@ -67,7 +66,10 @@ impl KnownBits {
             ty => Some(
                 self.known_bits[iidx]
                     .clone()
-                    .unwrap_or_else(|| KnownBitValue::unknown(ty.bitw())),
+                    .unwrap_or_else(|| {
+                        println!("Uknonwn {}", iidx.index());
+                        KnownBitValue::unknown(ty.bitw())
+                    }),
             ),
         }
     }
