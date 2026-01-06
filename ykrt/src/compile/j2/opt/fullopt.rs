@@ -178,6 +178,11 @@ impl FullOpt {
     fn commit_inst(&mut self, inst: Inst) -> InstIdx {
         let opt = CommitInstOpt { inner: &self.inner };
         let iidx = self.inner.insts.len_idx();
+
+        for pass in &mut self.passes {
+            pass.feed_post(iidx, &inst);
+        }
+
         for pass in &mut self.passes {
             pass.inst_committed(&opt, iidx, &inst);
         }
