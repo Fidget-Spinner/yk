@@ -75,6 +75,7 @@ impl KnownBits {
     }
 
     fn set_pending(&mut self, bits: KnownBitValue) {
+        println!("SET {} ", bits.ones);
         self.pending_commit = Some(bits);
     }
 
