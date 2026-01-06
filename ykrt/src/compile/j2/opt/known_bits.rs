@@ -63,14 +63,13 @@ impl KnownBits {
         match opt.inst(iidx).ty(opt) {
             Ty::Func(_) => None,
             Ty::Void => None,
-            ty => Some(
-                self.known_bits[iidx]
+            ty => Some({
+                let res = self.known_bits[iidx]
                     .clone()
-                    .unwrap_or_else(|| {
-                        println!("Uknonwn {}", iidx.index());
-                        KnownBitValue::unknown(ty.bitw())
-                    }),
-            ),
+                    .unwrap_or_else(|| KnownBitValue::unknown(ty.bitw())),
+                println!("Fetch {}", res.ones);
+                res
+            }),
         }
     }
 
