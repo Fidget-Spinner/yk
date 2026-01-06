@@ -85,6 +85,8 @@ impl PassT for LoadStore {
         }
     }
 
+    fn feed_post(&mut self, _iidx: InstIdx, _inst: &Inst) {}
+
     fn inst_committed(&mut self, opt: &CommitInstOpt, iidx: InstIdx, inst: &Inst) {
         match inst {
             // FIXME: This is a hack for "does this instruction have side effects".

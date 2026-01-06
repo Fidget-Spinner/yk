@@ -151,6 +151,11 @@ impl FullOpt {
                 OptOutcome::Equiv(iidx) => return Ok(Some(iidx)),
             }
 
+            let iidx = opt.inner.insts.len_idx();
+            for pass in &mut self.passes {
+                pass.feed_post(iidx, &inst);
+            }
+
             for inst in opt.pre_insts {
                 self.commit_inst_dedup_opt(inst);
             }
@@ -360,6 +365,9 @@ struct InstEquiv {
 pub(super) trait PassT {
     /// Feed [inst] instruction into the optimiser.
     fn feed(&mut self, opt: &mut PassOpt, inst: Inst) -> OptOutcome;
+
+    /// After an instruction has been fed, the postprocessing that is needed.
+    fn feed_post(&mut self, iidx: InstIdx, inst: &Inst);
 
     /// After an instruction has been committed to the trace -- i.e. there is
     /// no possibility that an optimisation pass will remove it -- this
