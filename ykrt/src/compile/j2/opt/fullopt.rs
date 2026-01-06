@@ -115,7 +115,7 @@ use std::{
 
 pub(in crate::compile::j2) struct FullOpt {
     /// The ordered set of optimisation passes that all instructions will be fed through.
-    passes: [Box<dyn PassT>; 3],
+    passes: [Box<dyn PassT>; 4],
     inner: OptInternal,
 }
 
@@ -125,7 +125,7 @@ impl FullOpt {
             passes: [
                 Box::new(StrengthFold::new()),
                 Box::new(LoadStore::new()),
-                // Box::new(CSE::new()),
+                Box::new(CSE::new()),
                 Box::new(KnownBits::new()),
             ],
             inner: OptInternal {
